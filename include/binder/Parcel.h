@@ -17,6 +17,8 @@
 #ifndef ANDROID_PARCEL_H
 #define ANDROID_PARCEL_H
 
+#include <vector>
+
 #include <cutils/native_handle.h>
 #include <utils/Errors.h>
 #include <utils/RefBase.h>
@@ -24,6 +26,8 @@
 #include <utils/Vector.h>
 #include <utils/Flattenable.h>
 #include <linux/binder.h>
+
+#include <binder/IInterface.h>
 
 // ---------------------------------------------------------------------------
 namespace android {
@@ -108,6 +112,20 @@ public:
     status_t            writeWeakBinder(const wp<IBinder>& val);
     status_t            writeInt32Array(size_t len, const int32_t *val);
     status_t            writeByteArray(size_t len, const uint8_t *val);
+    status_t            writeBool(bool val);
+    status_t            writeChar(char16_t val);
+    status_t            writeByte(int8_t val);
+
+    status_t            writeByteVector(const std::vector<int8_t>& val);
+    status_t            writeInt32Vector(const std::vector<int32_t>& val);
+    status_t            writeInt64Vector(const std::vector<int64_t>& val);
+    status_t            writeFloatVector(const std::vector<float>& val);
+    status_t            writeDoubleVector(const std::vector<double>& val);
+    status_t            writeBoolVector(const std::vector<bool>& val);
+    status_t            writeCharVector(const std::vector<char16_t>& val);
+    status_t            writeString16Vector(const std::vector<String16>& val);
+
+    status_t            writeStrongBinderVector(const std::vector<sp<IBinder>>& val);
 
     template<typename T>
     status_t            write(const Flattenable<T>& val);
@@ -118,7 +136,7 @@ public:
 
     // Place a native_handle into the parcel (the native_handle's file-
     // descriptors are dup'ed, so it is safe to delete the native_handle
-    // when this function returns). 
+    // when this function returns).
     // Doesn't take ownership of the native_handle.
     status_t            writeNativeHandle(const native_handle* handle);
     
@@ -169,13 +187,35 @@ public:
     status_t            readDouble(double *pArg) const;
     intptr_t            readIntPtr() const;
     status_t            readIntPtr(intptr_t *pArg) const;
+    bool                readBool() const;
+    status_t            readBool(bool *pArg) const;
+    char16_t            readChar() const;
+    status_t            readChar(char16_t *pArg) const;
+    int8_t              readByte() const;
+    status_t            readByte(int8_t *pArg) const;
 
     const char*         readCString() const;
     String8             readString8() const;
     String16            readString16() const;
+    status_t            readString16(String16* pArg) const;
     const char16_t*     readString16Inplace(size_t* outLen) const;
     sp<IBinder>         readStrongBinder() const;
+    status_t            readStrongBinder(sp<IBinder>* val) const;
     wp<IBinder>         readWeakBinder() const;
+
+    template<typename T>
+    status_t            readStrongBinder(sp<T>* val) const;
+
+    status_t            readStrongBinderVector(std::vector<sp<IBinder>>* val) const;
+
+    status_t            readByteVector(std::vector<int8_t>* val) const;
+    status_t            readInt32Vector(std::vector<int32_t>* val) const;
+    status_t            readInt64Vector(std::vector<int64_t>* val) const;
+    status_t            readFloatVector(std::vector<float>* val) const;
+    status_t            readDoubleVector(std::vector<double>* val) const;
+    status_t            readBoolVector(std::vector<bool>* val) const;
+    status_t            readCharVector(std::vector<char16_t>* val) const;
+    status_t            readString16Vector(std::vector<String16>* val) const;
 
     template<typename T>
     status_t            read(Flattenable<T>& val) const;
@@ -398,6 +438,22 @@ status_t Parcel::read(LightFlattenable<T>& val) const {
                 val.unflatten(buffer, size);
     }
     return NO_ERROR;
+}
+
+template<typename T>
+status_t Parcel::readStrongBinder(sp<T>* val) const {
+    sp<IBinder> tmp;
+    status_t ret = readStrongBinder(&tmp);
+
+    if (ret == OK) {
+        *val = interface_cast<T>(tmp);
+
+        if (val->get() == nullptr) {
+            return UNKNOWN_ERROR;
+        }
+    }
+
+    return ret;
 }
 
 // ---------------------------------------------------------------------------
